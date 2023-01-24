@@ -1,8 +1,6 @@
+import glob
 import os
 import sys
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-import glob
 import time
 from collections import OrderedDict
 from pathlib import Path
@@ -13,6 +11,8 @@ import cv2
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from craft_pytorch import craft_utils, file_utils, imgproc
 from craft_pytorch.craft import CRAFT
 from torch.autograd import Variable
@@ -122,7 +122,6 @@ def test_net(net, image, args):
 
 
 def inference(monitor_path_list, trained_model_path, craft_dir_path, args):
-    print('trained_model_path',trained_model_path)
     """ For test images in a folder """
     # load net
     net = CRAFT() # initialize

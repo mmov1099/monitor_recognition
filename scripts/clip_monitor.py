@@ -76,7 +76,6 @@ def projective_transformation(img, areas, img_name, monitor_dir_path, args):
 
     if args.save_monitor:
         monitor_img_path = os.path.join(monitor_dir_path, img_name) + '_monitor.jpg'
-        print(monitor_img_path)
         plt.imsave(monitor_img_path, dst)
 
     return dst

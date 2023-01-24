@@ -1,16 +1,16 @@
 import argparse
 import os
+import sys
+import warnings
 from pathlib import Path
 
+warnings.simplefilter('ignore')
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts/craft_pytorch'))
 from scripts import clip_monitor
+from scripts import run_craft as craft
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-
-import sys
-
-sys.path.append('./scripts/craft_pytorch')
-
-from scripts import run_craft as craft
 
 
 def args_parse():
