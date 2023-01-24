@@ -1,6 +1,6 @@
 # Setup
 ```bash
-git clone
+git clone https://github.com/mmov1099/monitor_recognition.git
 pip install -r requirements.txt
 ```
 If an error occurs during installation pytorch
