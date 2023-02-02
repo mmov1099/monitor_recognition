@@ -63,12 +63,12 @@ def args_parse():
         '--text_detect',
         default='gui',
         choices=['craft', 'gui', 'gui_each'],
-        help='choose text detection type'
+        help='choose text detection type, craft is not updated'
     )
     parser.add_argument(
         '--run_gui',
         action='store_false',
-        help='run detection monitor gui'
+        help='run detection monitor gui forcely'
     )
 
     # for CRAFT
@@ -160,7 +160,7 @@ def args_parse():
         '--tilt',
         default=1,
         type=int,
-        help='default tilt value of monitor table of cells'
+        help='default horizon tilt value of monitor table of cells'
     )
 
     # for text recognition
@@ -173,18 +173,18 @@ def args_parse():
     parser.add_argument(
         '--use_gray',
         action='store_false',
-        help='use grayscale image for text recognition'
+        help='convert grayscale image from trimed image for text recognition'
     )
     parser.add_argument(
         '--recog_gray',
         default=220,
         type=int,
-        help='gray threthold for text recognition'
+        help='gray threthold for trimed image'
     )
     parser.add_argument(
         '--craft_recog',
         action='store_false',
-        help='use craft for text recognition'
+        help='use craft after trimming image for text recognition'
     )
 
     args = parser.parse_args()
