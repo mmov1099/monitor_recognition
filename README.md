@@ -1,4 +1,12 @@
 # Setup
+Firstly install tesseract
+
+Other than Ubuntu -> [参考](https://tesseract-ocr.github.io/tessdoc/Installation.html)
+```bash
+sudo apt install tesseract-ocr
+sudo apt install libtesseract-dev
+```
+
 ```bash
 git clone https://github.com/mmov1099/monitor_recognition.git
 cd monitor_recognition
@@ -14,7 +22,7 @@ pip install torch torchvision torchaudio --extra-index-url https://download.pyto
 ```bash
 pwd # /monitor_recognition
 ```
-Bring monitor images to `monitor_recognition/imgs/`.
+Bring monitor images to `monitor_recognition/imgs/`
 ```python
 python main.py
 ```
@@ -23,22 +31,28 @@ python main.py
 python main.py -h
 ```
 ```bash
-usage: main.py [-h] [--img_dir IMG_DIR] [--result_dir RESULT_DIR] [--min_gray MIN_GRAY] [--max_gray MAX_GRAY] [--min_area MIN_AREA]
-               [--max_area MAX_AREA] [--save_contours] [--save_monitor] [--model_dir MODEL_DIR] [--text_threshold TEXT_THRESHOLD]
-               [--low_text LOW_TEXT] [--link_threshold LINK_THRESHOLD] [--cuda] [--canvas_size CANVAS_SIZE] [--mag_ratio MAG_RATIO]
-               [--poly] [--show_time] [--save_txt] [--save_craft]
+usage: main.py [-h] [--img_dir IMG_DIR] [--result_dir RESULT_DIR] [--monitor_gray MONITOR_GRAY] [--min_area MIN_AREA]
+               [--max_area MAX_AREA] [--save_contours] [--save_monitor] [--text_detect {craft,gui,gui_each}] [--run_gui]
+               [--model_dir MODEL_DIR] [--text_threshold TEXT_THRESHOLD] [--low_text LOW_TEXT]
+               [--link_threshold LINK_THRESHOLD] [--cuda] [--canvas_size CANVAS_SIZE] [--mag_ratio MAG_RATIO] [--poly]
+               [--show_time] [--save_txt] [--save_craft] [--height HEIGHT] [--width WIDTH] [--row ROW] [--column COLUMN]
+               [--tilt TILT] [--ocr_type {easyocr,mangaocr,tesseract,pyocr}] [--use_gray] [--recog_gray RECOG_GRAY]
+               [--craft_recog]
 
 optional arguments:
   -h, --help            show this help message and exit
   --img_dir IMG_DIR     folder path to input images
   --result_dir RESULT_DIR
                         folder path to result
-  --min_gray MIN_GRAY   min gray threthold for image processing
-  --max_gray MAX_GRAY   max gray threthold for image processing
-  --min_area MIN_AREA   min area threthold for image processing
-  --max_area MAX_AREA   max area threthold for image processing
+  --monitor_gray MONITOR_GRAY
+                        gray threthold for monitor image processing
+  --min_area MIN_AREA   min area threthold for monitor image processing
+  --max_area MAX_AREA   max area threthold for monitor image processing
   --save_contours       save contours of monitor in result dir
   --save_monitor        save clipped monitor img in result dir
+  --text_detect {craft,gui,gui_each}
+                        choose text detection type, craft is not updated
+  --run_gui             run detection monitor gui forcely
   --model_dir MODEL_DIR
                         CRAFT model dir
   --text_threshold TEXT_THRESHOLD
@@ -55,4 +69,15 @@ optional arguments:
   --show_time           show processing time
   --save_txt            save craft result as txt file
   --save_craft          save craft result as jpg file
+  --height HEIGHT       default height value of each cell of monitor table
+  --width WIDTH         default width value of each cell of monitor table
+  --row ROW             default row number of monitor table
+  --column COLUMN       default column number of monitor table
+  --tilt TILT           default horizon tilt value of monitor table of cells
+  --ocr_type {easyocr,mangaocr,tesseract,pyocr}
+                        choose ocr library
+  --use_gray            convert grayscale image from trimed image for text recognition
+  --recog_gray RECOG_GRAY
+                        gray threthold for trimed image
+  --craft_recog         use craft after trimming image for text recognition
 ```
