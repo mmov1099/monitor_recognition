@@ -16,11 +16,12 @@ def read_img(img_path_list, args):
         # 8ビット1チャンネルのグレースケールとして画像を読み込む
         img = cv2.imread(img_path)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, gray_img = cv2.threshold(gray, args.min_gray, args.max_gray, cv2.THRESH_BINARY)
+        _, gray_img = cv2.threshold(gray, args.monitor_gray, 255, cv2.THRESH_BINARY)
 
         img_list.append(img)
         gray_img_list.append(gray_img)
-        img_name_list.append(img_path.split('.')[-2].split('/')[-1])
+        img_name, img_ext = os.path.splitext(os.path.basename(img_path))
+        img_name_list.append(img_name)
 
     return img_list, gray_img_list, img_name_list
 
@@ -74,6 +75,9 @@ def projective_transformation(img, areas, img_name, monitor_dir_path, args):
     dst = cv2.warpPerspective(img, M, (dst_size[0],dst_size[1]))
     dst = dst.transpose(1, 0, 2)
 
+    # img[top : bottom, left : right]
+    dst = dst[len(dst)//2-25 : len(dst)-100]
+
     if args.save_monitor:
         monitor_img_path = os.path.join(monitor_dir_path, img_name) + '_monitor.jpg'
         plt.imsave(monitor_img_path, dst)
@@ -88,4 +92,4 @@ def process(img_dir_path, result_dir_path, args):
     img_list, gray_img_list, img_name_list = read_img(img_path_list, args)
     monitor_img_list = detect_monitor(img_list, gray_img_list, img_name_list, result_dir_path, args)
 
-    return monitor_img_list
+    return monitor_img_list, img_name_list
