@@ -1,7 +1,13 @@
+easyocr
+manga-ocr
 matplotlib
+opencv-contrib-python==4.7.0.68
 opencv-python==4.7.0.68
+pandas
+pyocr
 scikit-image==0.19.3
 scipy==1.10.0
+wheel
 torch==1.13.1+cu116
 torchaudio==0.13.1+cu116
 torchvision==0.14.1+cu116
