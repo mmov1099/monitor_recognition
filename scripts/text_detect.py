@@ -16,9 +16,17 @@ import torch.backends.cudnn as cudnn
 from PIL import Image
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from config import *
 from craft_pytorch import craft_utils, file_utils, imgproc
 from craft_pytorch.craft import CRAFT
 from torch.autograd import Variable
+
+RESULT_DIR_PATH = os.path.join(BASE_PATH, 'result/')
+Path(RESULT_DIR_PATH).mkdir(parents=True, exist_ok=True)
+
+GUI_DIR_PATH = os.path.join(RESULT_DIR_PATH, 'gui/')
+Path(GUI_DIR_PATH).mkdir(parents=True, exist_ok=True)
+os.system(f'rm -rf {GUI_DIR_PATH}/*.jpg')
 
 
 def download_and_unzip_craft_model(model_dir, detection_model):
@@ -155,10 +163,10 @@ class Inference():
         return polys
 
 
-def trim_with_craft_result(monitor_path_list, result, craft_dir_path, args):
+def trim_with_craft_result(img_path_list, result, save_dir_path, args):
     craft_imgs_list = []
 
-    for img_path, polys in zip(monitor_path_list, result):
+    for img_path, polys in zip(img_path_list, result):
         img = cv2.imread(img_path)
         craft_imgs = []
         for i, box in enumerate(polys):
@@ -174,18 +182,18 @@ def trim_with_craft_result(monitor_path_list, result, craft_dir_path, args):
 
             if args.save_craft:
                 file_name, file_ext = os.path.splitext(os.path.basename(img_path))
-                file_path = os.path.join(craft_dir_path, file_name)
+                file_path = os.path.join(save_dir_path, file_name)
                 cv2.imwrite(f'{file_path}_{i:08}.jpg', trimed_img)
         craft_imgs_list.append(craft_imgs)
 
     return craft_imgs_list
 
 
-def run_craft(BASE_PATH, result_dir_path, args):
-    monitor_dir_path = os.path.join(result_dir_path, 'monitor/')
+def run_craft(args):
+    monitor_dir_path = os.path.join(RESULT_DIR_PATH, 'monitor/')
     monitor_path_list = glob.glob(monitor_dir_path + '*.jpg')
 
-    craft_dir_path = os.path.join(result_dir_path + 'craft/')
+    craft_dir_path = os.path.join(RESULT_DIR_PATH + 'craft/')
     Path(craft_dir_path).mkdir(parents=True, exist_ok=True)
     os.system(f'rm -rf {craft_dir_path}/*')
 
@@ -233,9 +241,9 @@ def save_table(table, table_dir_path, img_name):
     df.to_csv(csv_path)
 
 
-def result2table(polys_list, imgs_list, BASE_PATH, result_dir_path, img_name_list, args):
+def result2table(polys_list, imgs_list, img_name_list, args):
     model_dir_path = os.path.join(BASE_PATH, 'model/')
-    table_dir_path = os.path.join(result_dir_path, 'table/')
+    table_dir_path = os.path.join(RESULT_DIR_PATH, 'table/')
     Path(table_dir_path).mkdir(parents=True, exist_ok=True)
 
     if args.ocr_type == 'easyocr':
@@ -248,18 +256,19 @@ def result2table(polys_list, imgs_list, BASE_PATH, result_dir_path, img_name_lis
         import pytesseract
     elif args.ocr_type == 'pyocr':
         import pyocr
+
         # ツール読み込み
         tools = pyocr.get_available_tools()
         tool = tools[0]
 
     if args.use_gray:
-        gray_dir_path = os.path.join(result_dir_path, 'gray/')
+        gray_dir_path = os.path.join(RESULT_DIR_PATH, 'gray/')
         Path(gray_dir_path).mkdir(parents=True, exist_ok=True)
-        os.system(f'rm -rf {result_dir_path}/gray_dir_path/*')
+        os.system(f'rm -rf {RESULT_DIR_PATH}/gray_dir_path/*')
 
     if args.craft_recog:
         trained_model_path = check_craft_model(BASE_PATH)
-        gui_craft_dir_path = os.path.join(result_dir_path, 'gui_craft/')
+        gui_craft_dir_path = os.path.join(RESULT_DIR_PATH, 'gui_craft/')
         os.system(f'rm -rf {gui_craft_dir_path}*')
 
         inf = Inference(trained_model_path, args)
@@ -277,8 +286,7 @@ def result2table(polys_list, imgs_list, BASE_PATH, result_dir_path, img_name_lis
                 img=255-img
                 cv2.imwrite(gray_img_path, img)
             if args.craft_recog:
-                if args.use_gray:
-                    craft_polys = inf.inference(gray_img_path, gui_craft_dir_path, i)
+                craft_polys = inf.inference(gray_img_path, gui_craft_dir_path, i)[0]
                 craft_polys = np.array(craft_polys).astype(np.int32)
                 img = img[craft_polys[0][1]: craft_polys[2][1], craft_polys[0][0]: craft_polys[1][0]]
                 cv2.imwrite(gui_craft_dir_path+img_name+f'_{i}.jpg', img)
@@ -326,8 +334,7 @@ def result2table(polys_list, imgs_list, BASE_PATH, result_dir_path, img_name_lis
     return table
 
 
-def create_gui_window(img_path, gui_dir_path, param, height, width, args):
-    img = cv2.imread(img_path)
+def create_gui_window(img, img_name, param, height, width, args):
     idx = 0
 
     def printCoor(event,x,y,flags,param):
@@ -336,7 +343,7 @@ def create_gui_window(img_path, gui_dir_path, param, height, width, args):
         #　nonlocalの宣言をして、この関数外にある変数にアクセス。
         nonlocal img
         nonlocal img_mes
-        nonlocal img_path
+        nonlocal img_name
         nonlocal idx
 
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -366,12 +373,11 @@ def create_gui_window(img_path, gui_dir_path, param, height, width, args):
             cv2.imshow('image',img_tmp)
 
         elif event == cv2.EVENT_RBUTTONDOWN:
-            img_name, img_ext = os.path.splitext(os.path.basename(img_path))
             temp_y = y
             for _ in range(args.row):
                 temp_x = x
                 for _ in range(args.column):
-                    trim_name = os.path.join(gui_dir_path, f'{img_name}_trim_{idx:08}.jpg')
+                    trim_name = os.path.join(GUI_DIR_PATH, f'{img_name}_trim_{idx:08}.jpg')
                     trim_array = trim(array=img, x=temp_x, y=temp_y, width=width, height=height)
                     param['polys'].append(np.array([[temp_x, temp_y],
                                                     [temp_x+width, temp_y],
@@ -390,7 +396,7 @@ def create_gui_window(img_path, gui_dir_path, param, height, width, args):
         #　nonlocalの宣言をして、この関数外にある変数にアクセス。
         nonlocal img
         nonlocal img_mes
-        nonlocal img_path
+        nonlocal img_name
         nonlocal idx
 
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -415,8 +421,7 @@ def create_gui_window(img_path, gui_dir_path, param, height, width, args):
             cv2.imshow('image',img_tmp)
 
         elif event == cv2.EVENT_RBUTTONDOWN:
-            img_name, img_ext = os.path.splitext(os.path.basename(img_path))
-            trim_name = os.path.join(gui_dir_path, f'{img_name}_trim_{idx:08}.jpg')
+            trim_name = os.path.join(GUI_DIR_PATH, f'{img_name}_trim_{idx:08}.jpg')
             trim_array = trim(array=img, x=x, y=y, width=width, height=height)
             param['polys'].append(np.array([[x, y], [x+width, y], [x+width, y+height], [x, y+height]], dtype=np.float32))
             param['clipped_imgs'].append(trim_array)
@@ -440,18 +445,15 @@ def create_gui_window(img_path, gui_dir_path, param, height, width, args):
     # 第一引数の名前が同じだと同じウィンドウに上書き表示(名前が異なると別のウインドウが作成される)。
 
 
-def pos_est_rect(img_path, gui_dir_path, args):
-    res_file_path = os.path.join(gui_dir_path, "res_polys") + '.txt'
+def get_gui_result(img, img_name, args):
+    res_file_path = os.path.join(GUI_DIR_PATH, "res_polys") + '.txt'
 
     if os.path.isfile(res_file_path) and args.run_gui:
         polys = read_polys_result(res_file_path)
 
-        img = cv2.imread(img_path)
         clipped_imgs = []
         for idx, poly in enumerate(polys):
-
-            img_name, img_ext = os.path.splitext(os.path.basename(img_path))
-            trim_name = os.path.join(gui_dir_path, f'{img_name}_trim_{idx:08}.jpg')
+            trim_name = os.path.join(GUI_DIR_PATH, f'{img_name}_trim_{idx:08}.jpg')
 
             x = int(poly[0][0])
             y = int(poly[0][1])
@@ -461,16 +463,16 @@ def pos_est_rect(img_path, gui_dir_path, args):
             cv2.imwrite(trim_name, trim_array)
 
     else:
-        polys, clipped_imgs = run_gui(img_path, gui_dir_path, res_file_path, args)
+        polys, clipped_imgs = run_gui(img, img_name, res_file_path, args)
 
     return polys, clipped_imgs
 
 
-def run_gui(img_path, gui_dir_path, res_file_path, args):
+def run_gui(img, img_name, res_file_path, args):
     height = args.height
     width = args.width
     param = {'polys':[], 'clipped_imgs':[]}
-    create_gui_window(img_path, gui_dir_path, param, height, width, args)
+    create_gui_window(img, img_name, param, height, width, args)
 
     while True:
         key = cv2.waitKey(20) & 0xFF
@@ -482,13 +484,13 @@ def run_gui(img_path, gui_dir_path, res_file_path, args):
             print(f'height is {height} now')
             height = int(input('input new height value\n>>>'))
             param = {'polys':[], 'clipped_imgs':[]}
-            create_gui_window(img_path, gui_dir_path, param, height, width, args)
+            create_gui_window(img, img_name, param, height, width, args)
         elif key == ord('w'):
             cv2.destroyAllWindows()
             print(f'width is {width} now')
             width = int(input('input new width value\n>>>'))
             param = {'polys':[], 'clipped_imgs':[]}
-            create_gui_window(img_path, gui_dir_path, param, height, width, args)
+            create_gui_window(img, img_name, param, height, width, args)
 
     cv2.destroyAllWindows()
 
@@ -514,32 +516,11 @@ def save_polys_result(boxes, res_file_path):
 
 def read_polys_result(res_file_path):
     polys = []
+
     with open(res_file_path, 'r') as f:
         for box in f.read().splitlines():
             box = box.split(',')
             poly = np.array([int(b) for b in box], dtype=np.float32).reshape((4, 2))
             polys.append(poly)
-            # poly = np.array(box).astype(np.int32).reshape((-1))
-            # strResult = ','.join([str(p) for p in poly]) + '\r\n'
-            # f.write(strResult)
+
     return polys
-
-
-def gui(result_dir_path, args):
-    gui_dir_path = os.path.join(result_dir_path, 'gui/')
-
-    Path(gui_dir_path).mkdir(parents=True, exist_ok=True)
-    os.system(f'rm -rf {gui_dir_path}/*.jpg')
-    monitor_dir_path = os.path.join(result_dir_path, 'monitor/')
-
-    moitor_path_list = sorted(glob.glob(monitor_dir_path+'*.jpg'))
-
-    polys_list = []
-    clipped_imgs_list = []
-
-    for img_path in moitor_path_list:
-        polys, clipped_imgs = pos_est_rect(img_path, gui_dir_path, args)
-        polys_list.append(polys)
-        clipped_imgs_list.append(clipped_imgs)
-
-    return polys_list, clipped_imgs_list

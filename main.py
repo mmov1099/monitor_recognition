@@ -1,4 +1,5 @@
 import argparse
+import glob
 import os
 import sys
 import warnings
@@ -6,7 +7,7 @@ from pathlib import Path
 
 warnings.simplefilter('ignore')
 
-BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+from scripts.config import *
 
 sys.path.append(os.path.join(BASE_PATH, 'scripts/craft_pytorch'))
 from scripts import clip_monitor, text_detect
@@ -20,12 +21,6 @@ def args_parse():
         default='imgs/',
         type=str,
         help='folder path to input images'
-    )
-    parser.add_argument(
-        '--result_dir',
-        default='result/',
-        type=str,
-        help='folder path to result'
     )
 
     # for monitor detection
@@ -196,14 +191,21 @@ if __name__ == '__main__':
     args = args_parse()
 
     img_dir_path = os.path.join(BASE_PATH, args.img_dir)
-    result_dir_path = os.path.join(BASE_PATH, args.result_dir)
-    Path(result_dir_path).mkdir(parents=True, exist_ok=True)
 
-    monitor_img_list, img_name_list = clip_monitor.process(img_dir_path, result_dir_path, args)
+    img_path_list = glob.glob(img_dir_path + '*.jpg')
+    img_path_list += glob.glob(img_dir_path + '*.png')
+
+    polys_list = []
+    clipped_imgs_list = []
+    img_name_list = []
+    for img_path in img_path_list:
+        monitor_img, img_name = clip_monitor.process(img_path, args)
+        img_name_list.append(img_name)
+        if args.text_detect == 'gui' or args.text_detect == 'gui_each':
+            polys, clipped_imgs = text_detect.get_gui_result(monitor_img, img_name, args)
+            polys_list.append(polys)
+            clipped_imgs_list.append(clipped_imgs)
     if args.text_detect == 'craft':
-        polys_list, clipped_imgs_list = text_detect.run_craft(BASE_PATH, result_dir_path, args)
-        print(clipped_imgs_list)
-    else:
-        polys_list, clipped_imgs_list = text_detect.gui(result_dir_path, args)
+        polys_list, clipped_imgs_list = text_detect.run_craft(args)
 
-    monitor_table = text_detect.result2table(polys_list, clipped_imgs_list, BASE_PATH, result_dir_path, img_name_list, args)
+    monitor_table = text_detect.result2table(polys_list, clipped_imgs_list, img_name_list, args)
