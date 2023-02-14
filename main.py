@@ -3,14 +3,14 @@ import glob
 import os
 import sys
 import warnings
-from pathlib import Path
+
+from tqdm import tqdm
 
 warnings.simplefilter('ignore')
-
+from scripts import detect_monitor, detect_text, recog_text
 from scripts.config import *
 
 sys.path.append(os.path.join(BASE_PATH, 'scripts/craft_pytorch'))
-from scripts import clip_monitor, text_detect
 
 
 def args_parse():
@@ -22,164 +22,69 @@ def args_parse():
         type=str,
         help='folder path to input images'
     )
+    parser.add_argument(
+        '--test',
+        action='store_true',
+        help='save result in each process'
+    )
+    parser.add_argument(
+        '--make_data',
+        action='store_true',
+        help='make digits data for training mynet'
+    )
 
     # for monitor detection
     parser.add_argument(
-        '--monitor_gray',
-        default=100,
-        type=int,
-        help='gray threthold for monitor image processing'
-    )
-    parser.add_argument(
-        '--min_area',
-        default=50000,
-        type=int,
-        help='min area threthold for monitor image processing'
-    )
-    parser.add_argument(
-        '--max_area',
-        default=1000000,
-        type=int,
-        help='max area threthold for monitor image processing'
-    )
-    parser.add_argument(
-        '--save_contours',
-        action='store_true',
-        help='save contours of monitor in result dir'
-    )
-    parser.add_argument(
-        '--save_monitor',
+        '--detect_monitor_gui',
         action='store_false',
-        help='save clipped monitor img in result dir'
+        help='run detect monitor gui forcely'
     )
 
     # for text detection
     parser.add_argument(
-        '--text_detect',
-        default='gui',
-        choices=['craft', 'gui', 'gui_each'],
-        help='choose text detection type, craft is not updated'
-    )
-    parser.add_argument(
-        '--run_gui',
+        '--detect_text_gui',
         action='store_false',
-        help='run detection monitor gui forcely'
-    )
-
-    # for CRAFT
-    parser.add_argument(
-        '--model_dir',
-        default='model',
-        type=str,
-        help='CRAFT model dir'
+        help='run detect text gui forcely'
     )
     parser.add_argument(
-        '--text_threshold',
-        default=-1,
-        type=float,
-        help='CRAFT text confidence threshold'
-    )
-    parser.add_argument(
-        '--low_text',
-        default=0.23,
-        type=float,
-        help='CRAFT text low-bound score'
-    )
-    parser.add_argument(
-        '--link_threshold',
-        default=-1,
-        type=float,
-        help='CRAFT link confidence threshold'
-    )
-    parser.add_argument(
-        '--cuda',
-        action = 'store_false',
-        help='Use cuda for inference for CRAFT'
-    )
-    parser.add_argument(
-        '--canvas_size',
-        default=1280, type=int,
-        help='CRAFT image size for inference'
-    )
-    parser.add_argument(
-        '--mag_ratio',
-        default=1.5,
-        type=float,
-        help='image magnification ratio'
-    )
-    parser.add_argument(
-        '--poly',
-        action='store_true',
-        help='enable polygon type'
-    )
-    parser.add_argument(
-        '--show_time',
-        action='store_true',
-        help='show processing time'
-    )
-    parser.add_argument(
-        '--save_txt',
-        action='store_true',
-        help='save craft result as txt file'
-    )
-    parser.add_argument(
-        '--save_craft',
-        action='store_true',
-        help='save craft result as jpg file'
+        '--num_digits',
+        default=5,
+        type=int,
+        help='a number of digits of each cell of monitor'
     )
 
     # for text detect gui
     parser.add_argument(
         '--height',
-        default=46,
-        help='default height value of each cell of monitor table'
+        default=35,
+        type=int,
+        help='default height value of each text of monitor table'
     )
     parser.add_argument(
         '--width',
-        default=107,
-        help='default width value of each cell of monitor table'
-    )
-    parser.add_argument(
-        '--row',
-        default=6,
+        default=17,
         type=int,
-        help='default row number of monitor table'
-    )
-    parser.add_argument(
-        '--column',
-        default=9,
-        type=int,
-        help='default column number of monitor table'
-    )
-    parser.add_argument(
-        '--tilt',
-        default=1,
-        type=int,
-        help='default horizon tilt value of monitor table of cells'
+        help='default width value of each text of monitor table'
     )
 
-    # for text recognition
+    # for recog text
     parser.add_argument(
-        '--ocr_type',
-        default='tesseract',
-        choices=['easyocr', 'mangaocr', 'tesseract', 'pyocr'],
-        help='choose ocr library'
+        '--model_name',
+        default='mynet',
+        type=str,
+        help='the name of a saving text recog model'
     )
     parser.add_argument(
-        '--use_gray',
-        action='store_false',
-        help='convert grayscale image from trimed image for text recognition'
+        '--model_type',
+        default='cnn',
+        choices=['cnn', 'mlp'],
+        help='choose mynet type'
     )
     parser.add_argument(
-        '--recog_gray',
-        default=220,
+        '--gray_threshold',
+        default=215,
         type=int,
-        help='gray threthold for trimed image'
-    )
-    parser.add_argument(
-        '--craft_recog',
-        action='store_false',
-        help='use craft after trimming image for text recognition'
+        help='gray threthold for trimed image in recognition text'
     )
 
     args = parser.parse_args()
@@ -195,17 +100,20 @@ if __name__ == '__main__':
     img_path_list = glob.glob(img_dir_path + '*.jpg')
     img_path_list += glob.glob(img_dir_path + '*.png')
 
-    polys_list = []
-    clipped_imgs_list = []
-    img_name_list = []
-    for img_path in img_path_list:
-        monitor_img, img_name = clip_monitor.process(img_path, args)
-        img_name_list.append(img_name)
-        if args.text_detect == 'gui' or args.text_detect == 'gui_each':
-            polys, clipped_imgs = text_detect.get_gui_result(monitor_img, img_name, args)
-            polys_list.append(polys)
-            clipped_imgs_list.append(clipped_imgs)
-    if args.text_detect == 'craft':
-        polys_list, clipped_imgs_list = text_detect.run_craft(args)
+    if args.make_data:
+        for img_path in tqdm(img_path_list):
+            monitor_img, img_name = detect_monitor.process(img_path, args)
+            polys, clipped_imgs = detect_text.get_gui_result(monitor_img, img_name, args)
 
-    monitor_table = text_detect.result2table(polys_list, clipped_imgs_list, img_name_list, args)
+        print('Making data is done\nNextly, create dataset dir')
+
+    else:
+        result2table = recog_text.Result2Table(args)
+        polys_list = []
+        clipped_imgs_list = []
+        img_name_list = []
+
+        for img_path in tqdm(img_path_list):
+            monitor_img, img_name = detect_monitor.process(img_path, args)
+            polys, clipped_imgs = detect_text.get_gui_result(monitor_img, img_name, args)
+            table = result2table.get_table(polys, clipped_imgs, img_name)
