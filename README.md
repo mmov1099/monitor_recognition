@@ -14,7 +14,7 @@ pip install torch torchvision torchaudio --extra-index-url https://download.pyto
 ```bash
 pwd # /monitor_recognition
 ```
-1. Bring monitor images to `monitor_recognition/imgs/`.
+1. Bring monitor images to `monitor_recognition/imgs/`. The name of imges format is `Y-m-d_H-M-S`. exp) 2023-01-28_15-47-44.png.
 2. Make data for training mynet.pth.
 ```bash
 python main.py --make_data
